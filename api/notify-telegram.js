@@ -6,7 +6,9 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Solo POST' });
 
   try {
-    const { type, table, record, schema } = req.body;
+    // 1. Recibimos los nuevos datos desde el Trigger SQL actualizado
+    const { type, table, schema, user_id, client_ip, record_id } = req.body;
+    
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     
@@ -20,11 +22,10 @@ export default async function handler(req, res) {
 
     // Helper para escapar MarkdownV2
     const escapeMd = (text) => {
-      if (!text) return '';
+      if (!text) return 'n/a';
       return String(text).replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
     };
 
-    // 1. Asignar Emoji según el esquema (Medallion Model)
     const schemaEmojis = {
       'operational': '⚙️',
       'raw_voice': '🎙️',
@@ -35,22 +36,16 @@ export default async function handler(req, res) {
     };
     const emoji = schemaEmojis[schema] || '🔔';
 
-    // 2. Construir el encabezado
-    let mensaje = `${emoji} *CAMBIO DETECTADO*\n\n`;
-    mensaje += `📂 *Esquema:* \`${escapeMd(schema.toUpperCase())}\`\n`;
+    // 2. Construir el mensaje optimizado (Sin el JSON pesado)
+    let mensaje = `${emoji} *CAMBIO DETECTADO EN ${escapeMd(schema.toUpperCase())}*\n\n`;
     mensaje += `📋 *Tabla:* ${escapeMd(table)}\n`;
     mensaje += `⚡ *Acción:* ${escapeMd(type)}\n`;
-    mensaje += `⏰ *Hora:* ${escapeMd(hora)}\n\n`;
-
-    // 3. Añadir los datos del registro (limitado para no exceder los 4096 caracteres de Telegram)
-    if (record) {
-      const jsonStr = JSON.stringify(record, null, 2);
-      // Cortamos el JSON si es muy largo para evitar errores de Telegram
-      const shortJson = jsonStr.length > 1500 ? jsonStr.substring(0, 1500) + '...' : jsonStr;
-      
-      mensaje += `📝 *Datos del registro:*\n`;
-      mensaje += `\`\`\`json\n${shortJson}\n\`\`\``;
-    }
+    mensaje += `🆔 *ID Registro:* \`${escapeMd(record_id)}\`\n\n`;
+    
+    // 3. Nuevos datos de Auditoría
+    mensaje += `👤 *Usuario:* \`${escapeMd(user_id)}\`\n`;
+    mensaje += `🌐 *IP Origen:* \`${escapeMd(client_ip)}\`\n`;
+    mensaje += `⏰ *Hora:* ${escapeMd(hora)}\n`;
 
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
     
