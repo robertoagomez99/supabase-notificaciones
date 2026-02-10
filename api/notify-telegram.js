@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { type, table, record } = req.body;
+    const { type, table, record, old_record, schema } = req.body;
     
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -32,10 +32,21 @@ export default async function handler(req, res) {
       minute: '2-digit'
     });
     
+    // Escapar caracteres especiales para Markdown
+    const escapeMd = (text) => {
+      if (!text) return 'desconocido';
+      return String(text).replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
+    };
+    
+    const tableEscaped = escapeMd(table);
+    const schemaEscaped = escapeMd(schema || 'public');
+    const typeEscaped = escapeMd(type);
+    
     let mensaje = `🔔 *Cambio en Supabase*\n\n`;
-    mensaje += `📋 *Tabla:* ${table || 'desconocida'}\n`;
-    mensaje += `⚡ *Acción:* ${type || 'desconocida'}\n`;
-    mensaje += `⏰ *Hora:* ${hora}\n`;
+    mensaje += `📋 *Schema:* ${schemaEscaped}\n`;
+    mensaje += `📋 *Tabla:* ${tableEscaped}\n`;
+    mensaje += `⚡ *Acción:* ${typeEscaped}\n`;
+    mensaje += `⏰ *Hora:* ${escapeMd(hora)}\n`;
     
     if (type === 'INSERT') {
       mensaje += `\n✅ Nuevo registro creado`;
@@ -55,7 +66,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         chat_id: chatId,
         text: mensaje,
-        parse_mode: 'Markdown'
+        parse_mode: 'MarkdownV2'
       })
     });
     
