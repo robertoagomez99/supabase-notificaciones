@@ -6,7 +6,7 @@ DECLARE
   client_ip TEXT;
   record_id TEXT;
   pk_column TEXT;
-  secret_token TEXT := 'JuanchoRois2026'; -- USA LA MISMA QUE EN VERCEL
+  secret_token TEXT := ''; -- USA LA MISMA QUE EN VERCEL
   http_request extensions.http_request;
   http_response extensions.http_response;
 BEGIN

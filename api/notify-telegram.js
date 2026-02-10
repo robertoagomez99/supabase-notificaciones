@@ -1,30 +1,34 @@
 export default async function handler(req, res) {
+  // 1. Logs iniciales para confirmar que ESTE código se ejecuta
+  console.log("--- NUEVA PETICIÓN RECIBIDA ---");
+  console.log("Headers recibidos:", JSON.stringify(req.headers));
+
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // --- SEGURIDAD: Validar Token ---
-  const API_SECRET = process.env.NOTIFY_SECRET; // Crea esto en Vercel Environment Variables
+  // 2. Validación de Seguridad
+  const API_SECRET = process.env.NOTIFY_SECRET;
   const clientSecret = req.headers['x-api-secret'];
 
+  console.log("Validando: DB_Secret(" + clientSecret + ") vs Vercel_Secret(" + API_SECRET + ")");
+
   if (!clientSecret || clientSecret !== API_SECRET) {
-    return res.status(401).json({ error: 'No autorizado' });
+    console.error("❌ ERROR: Clave secreta incorrecta o no enviada");
+    return res.status(401).json({ error: 'No autorizado, las claves no coinciden' });
   }
 
   try {
     const { type, table, schema, user_email, client_ip, record_id } = req.body;
     
-    // Configurar hora
     const hora = new Date().toLocaleString('es-CO', { 
       timeZone: 'America/Bogota',
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit'
     });
 
-    // Helper para escapar MarkdownV2 (Mejorado)
     const escapeMd = (text) => {
-      if (text === null || text === undefined || text === '') return 'Desconocido';
+      if (!text) return 'Desconocido';
       return String(text).replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
     };
 
@@ -38,15 +42,11 @@ export default async function handler(req, res) {
     mensaje += `📋 *Tabla:* ${escapeMd(table)}\n`;
     mensaje += `⚡ *Acción:* ${escapeMd(type)}\n`;
     mensaje += `🆔 *ID Registro:* \`${escapeMd(record_id)}\`\n\n`;
-    
-    // Aquí usamos user_email directamente
     mensaje += `👤 *Usuario:* ${escapeMd(user_email)}\n`; 
     mensaje += `🌐 *IP Origen:* \`${escapeMd(client_ip)}\`\n`;
     mensaje += `⏰ *Hora:* ${escapeMd(hora)}\n`;
 
-    const url = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`;
-    
-    const response = await fetch(url, {
+    await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -56,9 +56,11 @@ export default async function handler(req, res) {
       })
     });
 
+    console.log("✅ Mensaje enviado con éxito");
     return res.status(200).json({ success: true });
     
   } catch (error) {
+    console.error("❌ Error interno:", error.message);
     return res.status(500).json({ error: error.message });
   }
 }
