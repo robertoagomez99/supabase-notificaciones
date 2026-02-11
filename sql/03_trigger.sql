@@ -28,7 +28,7 @@ BEGIN
                             EXECUTE FUNCTION cleansed.notify_telegram();', 
                            _schema, _table.table_name);
                            
-            RAISE NOTICE '✅ Trigger configurado en: %.%', _schema, _table.table_name;
+            RAISE NOTICE 'Trigger configurado en: %.%', _schema, _table.table_name;
         END LOOP;
     END LOOP;
 END $$;
