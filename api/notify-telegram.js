@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
-  console.log("--- NEW REQUEST RECEIVED ---");
+  console.log("--- NEW DATABASE NOTIFICATION RECEIVED ---");
 
-  // CORS configuration
+  // CORS headers setup
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   const clientSecret = req.headers['x-api-secret'];
 
   if (!clientSecret || clientSecret !== API_SECRET) {
-    console.error("❌ ERROR: Invalid secret key");
+    console.error("❌ ERROR: Unauthorized access attempt");
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -20,15 +20,11 @@ export default async function handler(req, res) {
       type, table, schema, 
       user_email, client_ip, record_id,
       record, old_record,
-      
-      // Project information (sent from Supabase)
-      project_ref,
-      database_name,
-      db_user,
-      db_host
+      project_ref, database_name,
+      db_user, db_host
     } = req.body;
     
-    // Set time in Colombia timezone
+    // Set timestamp in Colombia timezone
     const timestamp = new Date().toLocaleString('es-CO', { 
       timeZone: 'America/Bogota',
       day: '2-digit', month: '2-digit', year: 'numeric',
@@ -36,34 +32,31 @@ export default async function handler(req, res) {
     });
 
     // Helper to escape special characters for Telegram MarkdownV2
+    // Telegram is very strict with characters like . - _ ! in MarkdownV2
     const escapeMd = (text) => {
       if (!text) return 'N/A';
       return String(text).replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
     };
 
-    // Emojis based on schema
+    // Emoji mapping for schemas
     const schemaEmojis = {
       'operational': '⚙️', 'raw_voice': '🎙️', 'raw_vision': '👁️',
       'artifacts': '📦', 'reporting': '📊', 'cleansed': '✨', 'public': '🌐'
     };
     const emoji = schemaEmojis[schema] || '🔔';
 
-    // Emojis based on operation type
-    const operationEmojis = {
-      'INSERT': '✅', 'UPDATE': '✏️', 'DELETE': '🗑️'
-    };
-    const opEmoji = operationEmojis[type] || '⚡';
+    // Emoji mapping for operations
+    const opEmoji = type === 'INSERT' ? '✅' : type === 'UPDATE' ? '✏️' : '🗑️';
 
     // BUILDING THE MESSAGE
     let message = `${emoji} *DATABASE CHANGE DETECTED*\n\n`;
     
-    // Project/DB Information
-    message += `🏢 *Project:* \`${escapeMd(project_ref || 'unknown')}\`\n`;
-    message += `💾 *Database:* \`${escapeMd(database_name || 'unknown')}\`\n`;
-    message += `🖥️ *Host:* \`${escapeMd(db_host || 'unknown')}\`\n`;
-    message += `👨‍💻 *DB User:* \`${escapeMd(db_user || 'unknown')}\`\n\n`;
+    // Project and Database info
+    message += `🏢 *Project:* \`${escapeMd(project_ref)}\`\n`;
+    message += `💾 *Database:* \`${escapeMd(database_name)}\`\n`;
+    message += `👨‍💻 *DB User:* \`${escapeMd(db_user)}\`\n\n`;
     
-    // Location details
+    // Location info
     message += `📂 *Schema:* \`${escapeMd(schema)}\`\n`;
     message += `📋 *Table:* \`${escapeMd(table)}\`\n\n`;
     
@@ -74,7 +67,7 @@ export default async function handler(req, res) {
     // User and Network info
     message += `👤 *User:* ${escapeMd(user_email)}\n`;
     message += `🌐 *Source IP:* \`${escapeMd(client_ip)}\`\n`;
-    message += `⏰ *Timestamp:* ${escapeMd(timestamp)}\n`;
+    message += `⏰ *Time:* ${escapeMd(timestamp)}\n`;
 
     // DATA DETAILS (Only for INSERT and UPDATE)
     // -----------------------------------------
@@ -118,14 +111,13 @@ export default async function handler(req, res) {
       }
     }
 
-    // NOTE: DELETE details are excluded as requested.
-
-    // Add direct link to Supabase Project
-    if (project_ref && project_ref !== 'unknown') {
-      message += `\n🔗 [View Project](https://supabase.com/dashboard/project/${project_ref})`;
+    // Link to Supabase Project (Corrected Markdown format)
+    if (project_ref && project_ref !== 'unknown' && project_ref !== 'your-project-ref-here') {
+      const baseUrl = "https://supabase.com/dashboard/project/";
+      message += `\n🔗 [View Project](${baseUrl}${project_ref})`;
     }
 
-    // Send to Telegram API
+    // Send the message to Telegram API
     const response = await fetch(
       `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
       {
@@ -140,16 +132,16 @@ export default async function handler(req, res) {
       }
     );
 
+    const result = await response.json();
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Telegram error: ${JSON.stringify(errorData)}`);
+      throw new Error(`Telegram API Error: ${result.description}`);
     }
 
-    console.log("✅ Message sent successfully");
+    console.log("✅ Notification sent successfully to Telegram");
     return res.status(200).json({ success: true });
     
   } catch (error) {
-    console.error("❌ Error:", error.message);
+    console.error("❌ ERROR:", error.message);
     return res.status(500).json({ error: error.message });
   }
 }
