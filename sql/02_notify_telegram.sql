@@ -1,3 +1,5 @@
+create schema if not exists extensions;
+create extension if not exists http with schema extensions;
 create or replace function cleansed.notify_telegram()
 returns trigger as $$
 declare
