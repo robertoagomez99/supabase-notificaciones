@@ -32,7 +32,9 @@ CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions;
 ### 2.Create the Notification Function
 Deploy the cleansed.notify_telegram() function. Ensure the secret_token variable inside the SQL matches the one in Vercel.
 ```sql
-folder sql
+01_consistence.sql
+02_notify_telegram.sql
+03_trigger.sql
 ```
 ## Security (Handshake Protocol)
 The system uses a custom header-based authentication:
