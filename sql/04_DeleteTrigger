@@ -1,0 +1,22 @@
+DO $$ 
+DECLARE 
+    _schema TEXT;
+    _table RECORD;
+    -- Los mismos esquemas donde los instalamos
+    target_schemas TEXT[] := ARRAY['operational', 'raw_voice', 'raw_vision', 'artifacts', 'reporting', 'cleansed']; 
+BEGIN
+    FOREACH _schema IN ARRAY target_schemas
+    LOOP
+        FOR _table IN (
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = _schema 
+            AND table_type = 'BASE TABLE'
+        ) LOOP
+            -- Intentar borrar el trigger si existe
+            EXECUTE format('DROP TRIGGER IF EXISTS notify_telegram_trigger ON %I.%I', 
+                           _schema, _table.table_name);
+        END LOOP;
+    END LOOP;
+END $$;
+DROP FUNCTION IF EXISTS cleansed.notify_telegram();
